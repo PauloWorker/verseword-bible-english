@@ -1,0 +1,11 @@
+{
+  "name": "verseword-bible-english",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VerseWord Bible English reader and vocabulary learning PWA",
+  "scripts": {
+    "build": "node src/build.mjs",
+    "test": "node --test src/*.test.cjs"
+  },
+  "engines": { "node": ">=20" }
+}
