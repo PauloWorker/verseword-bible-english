@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "VerseWord — Bible English Learning",
+  "short_name": "VerseWord",
+  "description": "Learn English by reading the Bible, one word at a time.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0c1425",
+  "theme_color": "#0c1425",
+  "icons": [
+    {"src":"/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"},
+    {"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
