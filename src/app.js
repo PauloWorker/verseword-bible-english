@@ -31,10 +31,10 @@
   function migrateLocalData() {
     saved = C.migrateSavedWords(saved);
     const savedOk = writeJSON(KEY.saved, saved);
-    if (savedOk) localStorage.removeItem(OLD.saved);
+    if (savedOk) { try { localStorage.removeItem(OLD.saved); } catch { /* keep the original collection if cleanup is unavailable */ } }
     readChapters = new Set([...readChapters].slice(-C.TOTAL_CHAPTERS));
     const readOk = writeJSON(KEY.read, [...readChapters]);
-    if (readOk) localStorage.removeItem(OLD.read);
+    if (readOk) { try { localStorage.removeItem(OLD.read); } catch { /* keep the original progress if cleanup is unavailable */ } }
     for (const key of Object.keys(chapterCache)) {
       const { cache } = C.readCache(chapterCache, key, MAX_CHAPTER_CACHE);
       chapterCache = cache;
@@ -42,7 +42,10 @@
     const cacheJSON = JSON.stringify(chapterCache);
     if (cacheJSON.length <= MAX_CACHE_CHARS) {
       try { localStorage.setItem(KEY.chapters, cacheJSON); localStorage.removeItem(OLD.chapters); } catch { /* offline cache is optional */ }
-    } else chapterCache = {};
+    } else {
+      chapterCache = {};
+      try { localStorage.removeItem(KEY.chapters); localStorage.removeItem(OLD.chapters); } catch { /* oversized chapter data is only a disposable cache */ }
+    }
     for (let index = localStorage.length - 1; index >= 0; index--) {
       const key = localStorage.key(index);
       if (key?.startsWith('verseword-img-v3-') || key?.startsWith('verseword-def-v2-')) localStorage.removeItem(key);
