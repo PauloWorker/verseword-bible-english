@@ -11,7 +11,7 @@ npm test
 npm run build
 ```
 
-The build copies the maintained source files from `src/` and the app icons from `assets/` into `dist/`. The app gets the World English Bible chapter text from Dabar, general dictionary entries from Free Dictionary API, and pronunciation audio from the browser's speech synthesis when available.
+The build copies the maintained source files and app icons from `src/` into `dist/`. The app gets the World English Bible chapter text from Dabar, general dictionary entries from Free Dictionary API, and pronunciation audio from the browser's speech synthesis when available.
 
 ## Contextual meanings and illustrations
 
@@ -19,7 +19,7 @@ VerseWord includes reviewed contextual notes for Genesis 1:3 `light`, John 8:12 
 
 ## Local data and offline use
 
-Saved words, reading progress, preferences, and up to 14 recently opened chapters are stored in the browser. Existing `verseword-saved`, `verseword-read`, and `verseword-chapters` data is read and migrated when the app loads. Chapter caching is bounded; saved words are capped at 500 entries. Previously cached chapters remain available offline. The service worker waits for active clients to finish before installing an update and does not reload an open reading session.
+Saved words, reading progress, preferences, and up to 14 recently opened chapters are stored in the browser. Existing `verseword-saved`, `verseword-read`, and `verseword-chapters` data is read and migrated when the app loads. Chapter and dictionary caches are bounded. New word entries stop at 500 so storage stays predictable; all entries already saved by a user are preserved. Previously cached chapters remain available offline. The service worker waits for active clients to finish before installing an update and does not reload an open reading session.
 
 The app is an installable web PWA. This repository does not include a native Android APK.
 
