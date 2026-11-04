@@ -22,14 +22,14 @@
   let chapterVerses = [];
   let chapterCache = readJSON(KEY.chapters, null) || readJSON(OLD.chapters, {});
   let readChapters = new Set(readJSON(KEY.read, null) || readJSON(OLD.read, []));
-  let saved = C.migrateSavedWords(readJSON(KEY.saved, null) || readJSON(OLD.saved, []), MAX_SAVED_WORDS);
+  let saved = C.migrateSavedWords(readJSON(KEY.saved, null) || readJSON(OLD.saved, []));
   let activeView = 'read', selectedWord = '', selectedContext = '', selectedVerseNo = 0, selectedButton = null;
   let lookupToken = 0, chapterToken = 0, chapterController = null, toastTimer = null, currentSense = null, currentDefinitions = null;
   const settings = readJSON(KEY.settings, {});
   let definitionCache = readJSON('verseword-def-cache-v3', {});
 
   function migrateLocalData() {
-    saved = C.migrateSavedWords(saved, MAX_SAVED_WORDS);
+    saved = C.migrateSavedWords(saved);
     const savedOk = writeJSON(KEY.saved, saved);
     if (savedOk) localStorage.removeItem(OLD.saved);
     readChapters = new Set([...readChapters].slice(-C.TOTAL_CHAPTERS));
@@ -281,6 +281,8 @@
     }).join('') : '<div class="empty-state"><strong>Your collection is ready.</strong><p>Tap a word while reading and save it to keep its meaning and Bible reference here.</p><button class="primary-button" data-view="read" type="button">Start reading</button></div>';
   }
   function saveCurrentWord() {
+    const exists = saved.some(entry => entry.word === selectedWord && entry.reference === currentReference && entry.partOfSpeech === (currentSense?.partOfSpeech || currentDefinitions?.groups?.[0]?.partOfSpeech || ''));
+    if (!exists && saved.length >= MAX_SAVED_WORDS) { toast('My Words is full. Remove a saved word before adding another.'); return; }
     const entry = { word: selectedWord, lemma: C.lemmaFor(selectedWord), partOfSpeech: currentSense?.partOfSpeech || currentDefinitions?.groups?.[0]?.partOfSpeech || '', definition: $('primary-definition').textContent, reference: currentReference, example: selectedContext, image: currentSense?.illustration ? { id: currentSense.illustration, caption: currentSense.note } : null, savedAt: new Date().toISOString() };
     saved = C.upsertSavedWord(saved, entry, MAX_SAVED_WORDS); writeJSON(KEY.saved, saved); renderSaved();
     $('save-word').classList.add('saved'); $('save-word').textContent = '✓ Saved to My Words'; toast('Saved to My Words');
