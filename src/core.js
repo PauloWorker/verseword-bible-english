@@ -120,7 +120,7 @@
     const raw = Array.isArray(data) ? data : (data?.verses || data?.chapter || []);
     return raw.map((verse, index) => ({ number: Number(verse.verse || verse.number || index + 1), text: String(verse.text || verse.content || '').trim() })).filter(verse => Number.isFinite(verse.number) && verse.text);
   }
-  function migrateSavedWords(input, limit = 500) {
+  function migrateSavedWords(input, limit = Infinity) {
     const result = [], seen = new Set();
     for (const item of Array.isArray(input) ? input : []) {
       const old = typeof item === 'string' ? { word: item } : item;
@@ -135,13 +135,14 @@
     return result.slice(-limit);
   }
   function upsertSavedWord(current, item, limit = 500) {
-    const next = migrateSavedWords(current, limit);
-    const normalized = migrateSavedWords([item], limit)[0];
+    const next = migrateSavedWords(current);
+    const normalized = migrateSavedWords([item])[0];
     if (!normalized) return next;
     const key = `${normalized.word}|${normalized.reference}|${normalized.partOfSpeech}`;
     const index = next.findIndex(entry => `${entry.word}|${entry.reference}|${entry.partOfSpeech}` === key);
-    if (index >= 0) next[index] = normalized; else next.push(normalized);
-    return next.slice(-limit);
+    if (index >= 0) next[index] = normalized;
+    else if (next.length < limit) next.push(normalized);
+    return next;
   }
   function readCache(cache, key, maxEntries = 14) {
     if (!cache || !Object.prototype.hasOwnProperty.call(cache, key)) return { cache: cache || {}, value: null };

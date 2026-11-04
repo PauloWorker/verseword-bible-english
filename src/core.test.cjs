@@ -87,7 +87,11 @@ test('saved word collection deduplicates the same word, verse, and category and 
   assert.equal(words.length, 1);
   assert.equal(words[0].definition, 'brightness');
   const alpha = number => { let value = ''; do { value = String.fromCharCode(97 + number % 26) + value; number = Math.floor(number / 26) - 1; } while (number >= 0); return `word${value}`; };
-  assert.equal(C.migrateSavedWords(Array.from({ length: 510 }, (_, index) => alpha(index))).length, 500);
+  const existing = Array.from({ length: 510 }, (_, index) => alpha(index));
+  assert.equal(C.migrateSavedWords(existing).length, 510);
+  const capped = C.upsertSavedWord(existing, { word: 'anothernewword' }, 500);
+  assert.equal(capped.length, 510);
+  assert.equal(capped.some(item => item.word === 'anothernewword'), false);
 });
 
 test('chapter cache access refreshes recency and enforces its entry bound', () => {
