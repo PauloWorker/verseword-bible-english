@@ -71,6 +71,40 @@ test('illustrations are available only for exact curated contextual entries', ()
   assert.equal(C.illustrationFor('light', 'John', 8, 11), null);
   assert.equal(C.illustrationFor('shepherd', 'Psalms', 22, 1), null);
   assert.equal(C.illustrationFor('king', 'Genesis', 1, 1), null);
+  assert.equal(C.illustrationFor('bank', 'Genesis', 1, 1), null);
+  assert.equal(C.illustrationFor('waters', 'Genesis', 1, 2).id, 'waters');
+  assert.equal(C.illustrationFor('seed', 'Genesis', 1, 11).id, 'seed');
+  assert.equal(C.illustrationFor('bread', 'John', 6, 35).id, 'life-bread');
+  assert.equal(C.illustrationFor('bread', 'John', 6, 34), null);
+});
+
+test('semantic cache keys bind a reviewed sense to the exact word, verse, text, and interpreter version', () => {
+  const key = C.semanticCacheKey('LIGHT', 'John 8:12', 'WEB', 'guide-v1');
+  assert.equal(key, 'light|john|8|12|web|guide-v1');
+  assert.notEqual(key, C.semanticCacheKey('light', 'Genesis 1:3', 'WEB', 'guide-v1'));
+  assert.notEqual(key, C.semanticCacheKey('light', 'John 8:12', 'KJV', 'guide-v1'));
+  assert.notEqual(key, C.semanticCacheKey('light', 'John 8:12', 'WEB', 'guide-v2'));
+  assert.equal(C.semanticCacheKey('light', 'John 8', 'WEB', 'guide-v1'), '');
+});
+
+test('settings updates persist atomically and report storage failures', () => {
+  const values = new Map();
+  const storage = { setItem: (key, value) => values.set(key, value) };
+  const updated = C.updateSettings(storage, 'settings', { theme: 'system', fontSize: 21 }, { theme: 'dark' });
+  assert.equal(updated.persisted, true);
+  assert.deepEqual(JSON.parse(values.get('settings')), { theme: 'dark', fontSize: 21 });
+  assert.deepEqual(updated.settings, { theme: 'dark', fontSize: 21 });
+  const failing = C.updateSettings({ setItem() { throw new Error('quota'); } }, 'settings', { theme: 'light' }, { theme: 'dark' });
+  assert.equal(failing.persisted, false);
+  assert.equal(failing.settings.theme, 'dark');
+});
+
+test('saved vocabulary writes can fail without mutating the prior collection', () => {
+  const saved = [{ word: 'light', reference: 'John 8:12', partOfSpeech: 'Noun' }];
+  const attempted = C.upsertSavedWord(saved, { word: 'waters', reference: 'Genesis 1:2', partOfSpeech: 'Noun' });
+  assert.equal(C.persistJSON({ setItem() { throw new Error('quota'); } }, 'saved', attempted), false);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].word, 'light');
 });
 
 test('saved words migrate from legacy strings and preserve available fields', () => {
@@ -103,11 +137,20 @@ test('chapter cache access refreshes recency and enforces its entry bound', () =
   assert.equal(Object.keys(result.cache).at(-1), 'book-0');
 });
 
+test('explicit offline downloads require complete ordered verse sequences and show a conservative estimate', () => {
+  assert.equal(C.isOrderedChapter([{ number: 1, text: 'First.' }, { number: 2, text: 'Second.' }]), true);
+  assert.equal(C.isOrderedChapter([{ number: 2, text: 'Second.' }, { number: 1, text: 'First.' }]), false);
+  assert.equal(C.isOrderedChapter([{ number: 1, text: '' }]), false);
+  assert.equal(C.estimatedBookBytes(50), 50 * 12 * 1024);
+  assert.equal(C.estimatedBookBytes(-1), 0);
+});
+
 test('PWA shell exposes themes, responsive navigation, keyboard dialog, and offline update behavior', () => {
   const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   const css = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf8');
   const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
   const sw = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8');
+  const offline = fs.readFileSync(path.join(__dirname, 'offline.js'), 'utf8');
   assert.match(html, /<option value="dark">Dark blue<\/option>/);
   assert.match(html, /<button class="mobile-nav-item[^>]+data-view="progress"/);
   assert.match(html, /role="dialog" aria-modal="true"/);
@@ -117,7 +160,11 @@ test('PWA shell exposes themes, responsive navigation, keyboard dialog, and offl
   assert.match(css, /prefers-reduced-motion/);
   assert.match(app, /focusTrap/);
   assert.match(app, /Saved for offline reading/);
-  assert.match(sw, /verseword-v7/);
+  assert.match(html, /id="offline-book-picker"/);
+  assert.match(html, /id="offline-download-progress"/);
+  assert.match(offline, /createObjectStore\('chapters'/);
+  assert.match(sw, /verseword-v8/);
+  assert.match(sw, /'\/offline.js'/);
   assert.doesNotMatch(sw, /skipWaiting\(\)|clients\.claim\(\)/);
   assert.doesNotMatch(app, /location\.reload\(/);
 });

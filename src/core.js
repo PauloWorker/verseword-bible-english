@@ -11,6 +11,7 @@
   ];
   const TOTAL_CHAPTERS = BOOKS.reduce((sum, book) => sum + book[2], 0);
   const POS_ORDER = ['verb','noun','adjective','adverb','pronoun','preposition','conjunction','determiner','interjection','other'];
+  const SEMANTIC_INTERPRETER_VERSION = 'reviewed-guide-v1';
 
   const LOCAL_WORDS = {
     beginning: ['the time when something starts; the first part of a story or event.', 'bih-GIN-ing', 'noun'],
@@ -30,15 +31,27 @@
 
   const CONTEXTUAL_SENSES = {
     'light|genesis|1|3': {
-      partOfSpeech: 'Noun', definition: 'Physical brightness that makes it possible to see; here, the light God creates and separates from darkness.',
+      guideId: 'genesis-1-3-light-v1', partOfSpeech: 'Noun', definition: 'Physical brightness that makes it possible to see; here, the light God creates and separates from darkness.',
       note: 'This verse describes physical light in the creation story.', example: 'God said, “Let there be light,” and there was light.', illustration: 'physical-light'
     },
     'light|john|8|12': {
-      partOfSpeech: 'Noun', definition: 'A picture of guidance and life from God. Jesus is described as the one who leads people out of spiritual darkness.',
+      guideId: 'john-8-12-light-v1', partOfSpeech: 'Noun', definition: 'A picture of guidance and life from God. Jesus is described as the one who leads people out of spiritual darkness.',
       note: 'Here “light” is figurative guidance, not a lamp or flashlight.', example: 'Jesus said, “I am the light of the world.”', illustration: 'guiding-light'
     },
+    'waters|genesis|1|2': {
+      guideId: 'genesis-1-2-waters-v1', partOfSpeech: 'Noun', definition: 'A large amount of water; in this verse, the waters covering the earth in the creation story.',
+      note: 'This refers to water in the creation scene. It is not a symbolic meaning in this verse.', example: 'The Spirit of God was hovering over the surface of the waters.', illustration: 'waters'
+    },
+    'seed|genesis|1|11': {
+      guideId: 'genesis-1-11-seed-v1', partOfSpeech: 'Noun', definition: 'The small part of a plant from which a new plant can grow; here, plants are described as producing seed.',
+      note: 'This verse uses seed in its ordinary, physical sense.', example: 'Let the earth bring forth grass, herbs yielding seed.', illustration: 'seed'
+    },
+    'bread|john|6|35': {
+      guideId: 'john-6-35-bread-v1', partOfSpeech: 'Noun', definition: 'Food made from flour; in this statement, “the bread of life” is a figurative description of Jesus as the source of life.',
+      note: 'The phrase is figurative here, not a reference to a loaf of bread.', example: 'Jesus said, “I am the bread of life.”', illustration: 'life-bread'
+    },
     'shepherd|psalms|23|*': {
-      partOfSpeech: 'Noun', definition: 'A person who protects, feeds, and guides sheep; in this psalm, a picture of God caring for and guiding people.',
+      guideId: 'psalms-23-shepherd-v1', partOfSpeech: 'Noun', definition: 'A person who protects, feeds, and guides sheep; in this psalm, a picture of God caring for and guiding people.',
       note: 'The shepherd image is both a real occupation and a comparison for caring guidance.', example: 'The Lord is my shepherd; I shall lack nothing.', illustration: 'shepherd'
     }
   };
@@ -100,6 +113,18 @@
     const wildcardKey = `${normalizeWord(word)}|${String(book || '').toLowerCase()}|${Number(chapter)}|*`;
     return CONTEXTUAL_SENSES[key] || CONTEXTUAL_SENSES[wildcardKey] || null;
   }
+  function semanticCacheKey(word, reference, translation = 'WEB', interpreterVersion = SEMANTIC_INTERPRETER_VERSION) {
+    const parsed = String(reference || '').match(/^(.*?)\s+(\d+):(\d+)$/);
+    if (!parsed) return '';
+    return [normalizeWord(word), parsed[1].trim().toLowerCase(), Number(parsed[2]), Number(parsed[3]), String(translation).trim().toLowerCase(), String(interpreterVersion)].join('|');
+  }
+  function persistJSON(storage, key, value) {
+    try { storage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+  }
+  function updateSettings(storage, key, current, changes) {
+    const settings = { ...(current || {}), ...(changes || {}) };
+    return { settings, persisted: persistJSON(storage, key, settings) };
+  }
   function illustrationFor(word, book, chapter, verse) {
     const sense = contextualSense(word, book, chapter, verse);
     return sense?.illustration ? { id: sense.illustration, caption: sense.note, attribution: 'Original VerseWord illustration' } : null;
@@ -120,6 +145,10 @@
     const raw = Array.isArray(data) ? data : (data?.verses || data?.chapter || []);
     return raw.map((verse, index) => ({ number: Number(verse.verse || verse.number || index + 1), text: String(verse.text || verse.content || '').trim() })).filter(verse => Number.isFinite(verse.number) && verse.text);
   }
+  function isOrderedChapter(verses) {
+    return Array.isArray(verses) && verses.length > 0 && verses[0].number === 1 && verses.every((verse, index) => Number.isInteger(verse.number) && verse.number === index + 1 && typeof verse.text === 'string' && verse.text.trim().length > 0);
+  }
+  function estimatedBookBytes(chapterCount) { return Math.max(0, Math.round(Number(chapterCount) || 0) * 12 * 1024); }
   function migrateSavedWords(input, limit = Infinity) {
     const result = [], seen = new Set();
     for (const item of Array.isArray(input) ? input : []) {
@@ -155,5 +184,5 @@
     return requestToken === latestToken && requestedKey === currentKey;
   }
 
-  return { BOOKS, TOTAL_CHAPTERS, LOCAL_WORDS, normalizeWord, lemmaCandidates, lemmaFor, normalizePartOfSpeech, localDefinition, normalizeDefinitions, contextualSense, illustrationFor, resolveChapter, normalizeChapter, migrateSavedWords, upsertSavedWord, readCache, canApplyChapterResponse };
+  return { BOOKS, TOTAL_CHAPTERS, LOCAL_WORDS, SEMANTIC_INTERPRETER_VERSION, normalizeWord, lemmaCandidates, lemmaFor, normalizePartOfSpeech, localDefinition, normalizeDefinitions, contextualSense, semanticCacheKey, persistJSON, updateSettings, illustrationFor, resolveChapter, normalizeChapter, isOrderedChapter, estimatedBookBytes, migrateSavedWords, upsertSavedWord, readCache, canApplyChapterResponse };
 });

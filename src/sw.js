@@ -1,5 +1,5 @@
-const CACHE = 'verseword-v7';
-const ASSETS = ['/', '/styles.css', '/core.js', '/app.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
+const CACHE = 'verseword-v8';
+const ASSETS = ['/', '/styles.css', '/core.js', '/offline.js', '/app.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
