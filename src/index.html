@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c1425">
+  <meta name="description" content="Read the Bible and learn English one word at a time with VerseWord.">
+  <meta name="color-scheme" content="light dark">
+  <title>VerseWord — Read Scripture. Grow your English.</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/core.js"></script>
+  <script defer src="/offline.js"></script>
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#read" aria-label="VerseWord home">
+        <span class="brand-mark" aria-hidden="true">V</span><span>verseword</span>
+      </a>
+      <nav class="desktop-nav" aria-label="Main navigation">
+        <button class="nav-link active" type="button" data-view="read">Read</button>
+        <button class="nav-link" type="button" data-view="words">My Words</button>
+        <button class="nav-link" type="button" data-view="progress">Progress</button>
+        <button class="nav-link" type="button" data-view="settings">Settings</button>
+      </nav>
+      <button class="icon-button theme-quick" id="theme-quick" type="button" aria-label="Switch theme" aria-pressed="false" title="Switch theme">◐</button>
+    </header>
+
+    <main id="app-main" tabindex="-1">
+      <section class="view active" id="view-read" data-view-panel="read" aria-labelledby="page-title">
+        <div class="page-heading">
+          <div><p class="eyebrow">A little English, every day</p><h1 id="page-title">Read Scripture.<br><span>Grow your English.</span></h1></div>
+          <p class="intro">Read the Bible at your pace. Tap any word to explore its meaning in the verse.</p>
+        </div>
+        <div class="reading-layout">
+          <section class="reader-card" aria-label="Bible reader">
+            <div class="reader-toolbar">
+              <div class="chapter-pickers">
+                <label class="sr-only" for="book-picker">Choose a book</label><select id="book-picker" class="select-control"></select>
+                <label class="sr-only" for="chapter-picker">Choose a chapter</label><select id="chapter-picker" class="select-control"></select>
+              </div>
+              <span class="translation-badge">World English Bible</span>
+            </div>
+            <div class="reader-heading-row"><h2 id="chapter-heading">Genesis 1</h2><span id="offline-state" class="status-text" role="status"></span></div>
+            <div class="reader-scroll" id="reader-scroll" tabindex="0" aria-label="Chapter text">
+              <div class="reader-text" id="reader-text" aria-live="polite"><div class="load-state">Loading the first chapter…</div></div>
+            </div>
+            <div class="reader-footer">
+              <span>66 books · <a href="https://ebible.org/engwebp/copyright.htm" target="_blank" rel="noopener noreferrer">Public domain text</a></span>
+              <div class="reader-actions">
+                <button class="icon-button" id="speak" type="button" aria-label="Read chapter aloud" aria-pressed="false" title="Read aloud">◖))</button>
+                <button class="icon-button" id="previous" type="button" aria-label="Previous chapter" title="Previous chapter">←</button>
+                <button class="icon-button" id="next" type="button" aria-label="Next chapter" title="Next chapter">→</button>
+              </div>
+            </div>
+          </section>
+          <aside class="reading-aside" aria-label="Reading overview">
+            <section class="panel-card progress-card">
+              <div class="card-heading"><h2>Reading progress</h2><span class="progress-value" id="progress-percent">0%</span></div>
+              <div class="progress-track" aria-hidden="true"><span id="progress-fill"></span></div>
+              <p class="muted" id="progress-note">Start anywhere and keep going.</p>
+              <p class="progress-count" id="progress-count">0 / 1,189 chapters</p>
+            </section>
+            <section class="panel-card word-card">
+              <div class="card-heading"><h2>My Words</h2><button class="text-button" data-view="words" type="button">See all</button></div>
+              <div id="saved-preview" class="saved-preview"><p class="muted">Save words as you read.</p></div>
+            </section>
+            <section class="daily-card"><span class="daily-mark" aria-hidden="true">✦</span><p>“In the beginning” means at the very first moment something started.</p><span>Today's English note</span></section>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="view-words" data-view-panel="words" aria-labelledby="words-title" hidden>
+        <div class="page-heading compact"><div><p class="eyebrow">Your collection</p><h1 id="words-title">My Words</h1></div><p class="intro">Words you save while reading, with the verse and meaning that helped you learn them.</p></div>
+        <div id="saved-collection" class="collection-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="view" id="view-progress" data-view-panel="progress" aria-labelledby="progress-title" hidden>
+        <div class="page-heading compact"><div><p class="eyebrow">Your reading journey</p><h1 id="progress-title">Progress</h1></div><p class="intro">Every chapter you open is saved on this device.</p></div>
+        <div class="progress-page-grid">
+          <section class="panel-card progress-large"><span class="eyebrow">Chapters visited</span><strong id="progress-large-count">0 / 1,189</strong><div class="progress-track"><span id="progress-large-fill"></span></div><p class="muted" id="progress-large-note">Choose a book and begin reading.</p></section>
+          <section class="panel-card"><h2 class="card-title">Books in this Bible</h2><p class="muted">VerseWord includes all 66 books and 1,189 chapters of the World English Bible.</p><button class="primary-button" data-view="read" type="button">Continue reading</button></section>
+        </div>
+      </section>
+
+      <section class="view" id="view-settings" data-view-panel="settings" aria-labelledby="settings-title" hidden>
+        <div class="page-heading compact"><div><p class="eyebrow">Make it comfortable</p><h1 id="settings-title">Settings</h1></div><p class="intro">Adjust the reader for your screen and your preferred reading style.</p></div>
+        <div class="settings-list panel-card">
+          <label class="setting-row" for="theme-setting"><span><strong>Appearance</strong><small>Choose light, dark, or follow your device.</small></span><select id="theme-setting" class="select-control"><option value="system">Use device setting</option><option value="light">Light</option><option value="dark">Dark blue</option></select></label>
+          <label class="setting-row" for="font-size-setting"><span><strong>Text size</strong><small>Change the size of the Bible text.</small></span><span class="range-control"><input id="font-size-setting" type="range" min="18" max="30" step="1" value="21"><output id="font-size-value" for="font-size-setting">21 px</output></span></label>
+          <label class="setting-row" for="line-height-setting"><span><strong>Line spacing</strong><small>Add more room between lines.</small></span><select id="line-height-setting" class="select-control"><option value="1.65">Compact</option><option value="1.85">Comfortable</option><option value="2.05">Relaxed</option></select></label>
+          <p class="muted settings-footnote">Your reading position, saved words, and preferences stay on this device.</p>
+        </div>
+        <section class="settings-list panel-card offline-download-card" aria-labelledby="offline-download-title">
+          <h2 class="card-title" id="offline-download-title">Offline books</h2>
+          <p class="muted">Download a book to keep its chapters on this device. Downloads are stored separately from temporary app caches and remain available after routine app updates. The source limits requests, so a book can take a few minutes to download.</p>
+          <label class="offline-book-row" for="offline-book-picker"><span>Book</span><select id="offline-book-picker" class="select-control"></select></label>
+          <p class="muted" id="offline-estimate">Estimated size: —</p>
+          <progress id="offline-download-progress" max="1" value="0" aria-label="Book download progress" hidden></progress>
+          <div class="offline-actions"><button class="primary-button" id="offline-download" type="button">Download book</button><button class="secondary-button" id="offline-cancel" type="button" disabled>Cancel</button><button class="secondary-button" id="offline-remove" type="button" disabled>Remove download</button></div>
+          <p class="muted offline-status" id="offline-download-status" role="status" aria-live="polite">Checking offline storage…</p>
+        </section>
+      </section>
+    </main>
+
+    <nav class="mobile-nav" aria-label="Main navigation">
+      <button class="mobile-nav-item active" type="button" data-view="read"><span aria-hidden="true">▤</span><small>Read</small></button>
+      <button class="mobile-nav-item" type="button" data-view="words"><span aria-hidden="true">▧</span><small>My Words</small></button>
+      <button class="mobile-nav-item" type="button" data-view="progress"><span aria-hidden="true">◔</span><small>Progress</small></button>
+      <button class="mobile-nav-item" type="button" data-view="settings"><span aria-hidden="true">⚙</span><small>Settings</small></button>
+    </nav>
+  </div>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+  <section class="word-sheet" id="word-sheet" role="dialog" aria-modal="true" aria-labelledby="word-title" aria-describedby="context-note" aria-hidden="true" tabindex="-1">
+    <div class="sheet-grab" aria-hidden="true"><span></span></div>
+    <div class="sheet-header"><span class="eyebrow">Word explorer</span><button class="icon-button close-button" id="close-sheet" type="button" aria-label="Close word explanation">×</button></div>
+    <div class="word-title-row"><h2 id="word-title">Word</h2><button class="icon-button audio-word" id="speak-word" type="button" aria-label="Hear pronunciation" aria-pressed="false" title="Hear pronunciation">◖))</button></div>
+    <p class="pronunciation" id="pronunciation"></p>
+    <div id="context-note" class="context-note" role="status"></div>
+    <section class="primary-sense" aria-labelledby="sense-title"><div class="sense-meta"><span id="part-of-speech">Meaning</span><span id="sense-source"></span></div><h3 id="sense-title">Meaning in this verse</h3><p id="primary-definition" class="primary-definition"></p></section>
+    <figure class="meaning-visual" id="meaning-visual" hidden><div id="illustration"></div><figcaption id="illustration-caption"></figcaption></figure>
+    <section class="verse-context"><h3>From the Bible</h3><p id="context-verse"></p><small id="context-reference"></small></section>
+    <section class="other-senses" id="other-senses" hidden><details><summary>Other dictionary meanings</summary><div id="definitions-list"></div></details></section>
+    <button class="primary-button save-word" id="save-word" type="button">＋ Save to My Words</button>
+    <p class="image-attribution" id="image-attribution" hidden></p>
+  </section>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

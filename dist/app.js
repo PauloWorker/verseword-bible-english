@@ -1,60 +1,537 @@
-const BOOKS = [
-  ['Genesis','GEN',50],['Exodus','EXO',40],['Leviticus','LEV',27],['Numbers','NUM',36],['Deuteronomy','DEU',34],['Joshua','JOS',24],['Judges','JDG',21],['Ruth','RUT',4],['1 Samuel','1SA',31],['2 Samuel','2SA',24],['1 Kings','1KI',22],['2 Kings','2KI',25],['1 Chronicles','1CH',29],['2 Chronicles','2CH',36],['Ezra','EZR',10],['Nehemiah','NEH',13],['Esther','EST',10],['Job','JOB',42],['Psalms','PSA',150],['Proverbs','PRO',31],['Ecclesiastes','ECC',12],['Song of Solomon','SNG',8],['Isaiah','ISA',66],['Jeremiah','JER',52],['Lamentations','LAM',5],['Ezekiel','EZK',48],['Daniel','DAN',12],['Hosea','HOS',14],['Joel','JOL',3],['Amos','AMO',9],['Obadiah','OBA',1],['Jonah','JON',4],['Micah','MIC',7],['Nahum','NAM',3],['Habakkuk','HAB',3],['Zephaniah','ZEP',3],['Haggai','HAG',2],['Zechariah','ZEC',14],['Malachi','MAL',4],
-  ['Matthew','MAT',28],['Mark','MRK',16],['Luke','LUK',24],['John','JHN',21],['Acts','ACT',28],['Romans','ROM',16],['1 Corinthians','1CO',16],['2 Corinthians','2CO',13],['Galatians','GAL',6],['Ephesians','EPH',6],['Philippians','PHP',4],['Colossians','COL',4],['1 Thessalonians','1TH',5],['2 Thessalonians','2TH',3],['1 Timothy','1TI',6],['2 Timothy','2TI',4],['Titus','TIT',3],['Philemon','PHM',1],['Hebrews','HEB',13],['James','JAS',5],['1 Peter','1PE',5],['2 Peter','2PE',3],['1 John','1JN',5],['2 John','2JN',1],['3 John','3JN',1],['Jude','JUD',1],['Revelation','REV',22]
-];
-const TOTAL_CHAPTERS=1189, $=id=>document.getElementById(id);
-const dict={
-  beginning:['the time when something starts; the first part of a story or event.','bih-GIN-ing','beginning'],
-  created:['made something that did not exist before.','kree-AY-tid','create'],
-  heaven:['the sky and the space above the earth.','HEV-un','heavens'], heavens:['the sky and the space above the earth.','HEV-unz','heavens'],
-  earth:['the world where people, animals, and plants live; the ground beneath our feet.','urth','earth'], light:['brightness that lets us see; the opposite of darkness.','lite','beginning'],
-  darkness:['a state with little or no light.','DARK-nis','beginning'], god:['In the Bible, God is the creator and ruler of everything.','god','heavens'],
-  without:['not having something; with none of it.','wi-THOUT','small'], void:['completely empty; having nothing inside.','voyd','earth'],
-  good:['helpful, pleasant, or of a high quality.','good','earth'], day:['the time when it is light outside, or a period of 24 hours.','day','beginning'],
-  night:['the dark part of each day, when the sun is down.','nite','heavens'], shepherd:['a person who takes care of sheep.','SHEP-erd','earth'],
-  seed:['the small part of a plant from which a new plant can grow.','seed','earth'], bread:['food made from flour, usually baked into a loaf.','bred','earth'],
-  king:['a man who rules a country or kingdom.','king','heavens'], river:['a large natural stream of water.','RIV-er','earth'],
-  peace:['a time or state without fighting or trouble.','pees','beginning'], wisdom:['the ability to make good choices using knowledge and experience.','WIZ-dum','heavens']
-};
-let bookIndex=0,chapterNumber=1,chapterVerses=[],selectedWord='',selectedContext='',saved=readJSON('verseword-saved',[]),chapterCache=readJSON('verseword-chapters',{}),lookupToken=0,imageToken=0,meaningGroups=[],activeSense=0;
-function readJSON(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}}
-function writeJSON(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
-function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function bookName(){return BOOKS[bookIndex][0]}
-function chapterKey(i=bookIndex,c=chapterNumber){return `${BOOKS[i][1]}-${c}`}
-function apiChapterURL(i=bookIndex,c=chapterNumber){return `https://dabar.io/data/web/${BOOKS[i][1]}/${c}`}
-function populateBooks(){const select=$('book-picker');select.innerHTML='<optgroup label="Old Testament"></optgroup><optgroup label="New Testament"></optgroup>';const groups=select.querySelectorAll('optgroup');BOOKS.forEach((b,i)=>{const o=document.createElement('option');o.value=i;o.textContent=b[0];groups[i<39?0:1].appendChild(o)});select.value=bookIndex;populateChapters()}
-function populateChapters(){const count=BOOKS[bookIndex][2],s=$('chapter-picker');s.innerHTML=Array.from({length:count},(_,i)=>`<option value="${i+1}">Chapter ${i+1}</option>`).join('');s.value=chapterNumber}
-function chapterOrdinal(){return BOOKS.slice(0,bookIndex).reduce((n,b)=>n+b[2],0)+chapterNumber}
-function updateProgress(){const seen=readJSON('verseword-read',[]).length;$('progress-count').textContent=`${seen.toLocaleString()} / ${TOTAL_CHAPTERS.toLocaleString()}`;$('progress-fill').style.width=`${seen/TOTAL_CHAPTERS*100}%`;$('progress-note').textContent=`Currently reading ${bookName()} ${chapterNumber}`}
-function renderWords(text,verseNo){return String(text).split(/(\s+)/).map(part=>{if(/^\s+$/.test(part))return part;const plain=part.replace(/^[^\p{L}]+|[^\p{L}]+$/gu,'');if(!plain)return escapeHTML(part);return `<button class="word" data-word="${escapeHTML(plain.toLowerCase())}" data-context="${escapeHTML(text)}" data-verse="${verseNo}" aria-label="Explain ${escapeHTML(plain)}">${escapeHTML(part)}</button>`}).join('')}
-function renderChapter(){ $('chapter-heading').textContent=`${bookName()} ${chapterNumber}`;$('reader-text').innerHTML=chapterVerses.map(v=>`<p class="verse"><sup class="verse-number">${v.number}</sup>${renderWords(v.text,v.number)}</p>`).join('');document.querySelectorAll('.word').forEach(b=>b.addEventListener('click',()=>openWord(b.dataset.word,b.dataset.context,Number(b.dataset.verse),b)));$('book-picker').value=bookIndex;$('chapter-picker').value=chapterNumber;const key=chapterKey();const read=new Set(readJSON('verseword-read',[]));read.add(key);writeJSON('verseword-read',[...read].slice(-1189));updateProgress()}
-async function loadChapter(){closeSheet();$('reader-text').innerHTML='<div class="load-state">Loading this chapter…</div>';$('chapter-heading').textContent=`${bookName()} ${chapterNumber}`;populateChapters();updateProgress();const key=chapterKey();if(chapterCache[key]?.length){chapterVerses=chapterCache[key];renderChapter();return}try{const response=await fetch(apiChapterURL(),{headers:{Accept:'application/json'}});if(!response.ok)throw Error(`HTTP ${response.status}`);const data=await response.json();const raw=Array.isArray(data)?data:(data.verses||data.chapter||[]);const verses=raw.map((v,i)=>({number:Number(v.verse||v.number||i+1),text:String(v.text||v.content||'').trim()})).filter(v=>v.text);if(!verses.length)throw Error('No verses found');chapterVerses=verses;chapterCache[key]=verses;const keys=Object.keys(chapterCache);while(keys.length>14)delete chapterCache[keys.shift()];writeJSON('verseword-chapters',chapterCache);renderChapter()}catch(e){const cached=chapterCache[key];if(cached?.length){chapterVerses=cached;renderChapter();toast('Showing the saved copy of this chapter')}else{$('reader-text').innerHTML='<div class="load-state">This chapter could not load. Check your connection and try again.</div>';toast('Connect to the internet to load this chapter')}}}
-function picture(kind){const scenes={beginning:`<rect width="620" height="220" fill="#e5f0e8"/><circle cx="490" cy="49" r="28" fill="#e6bd69"/><path d="M0 156Q125 111 251 151T620 143V220H0Z" fill="#a8c5a1"/><path d="M0 178Q160 140 320 177T620 162V220H0Z" fill="#779d80"/><path d="M0 201Q130 172 272 199T620 188V220H0Z" fill="#557d6b"/>`,heavens:`<rect width="620" height="220" fill="#273f57"/><circle cx="496" cy="52" r="27" fill="#f4dfaa"/><path d="m95 43 3 8 8 3-8 3-3 8-3-8-8-3 8-3 3-8Zm139 29 2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6Z" fill="#e6d69e"/><path d="M0 173q110-42 220 0t220 0 180 0v47H0Z" fill="#466a65"/>`,earth:`<rect width="620" height="220" fill="#dae9e3"/><circle cx="490" cy="54" r="25" fill="#efc66f"/><path d="M0 130Q92 94 193 131t208-4 219 3v90H0Z" fill="#a1bd92"/><path d="M0 175Q100 138 246 173t193-3 181 2v48H0Z" fill="#658a70"/>`,create:`<rect width="620" height="220" fill="#e9f1eb"/><circle cx="494" cy="55" r="29" fill="#e9c274"/><path d="M0 163Q145 105 275 158t345-5v67H0Z" fill="#8eaf8b"/><path d="M202 156v-44m-20 24h40m-20-38 0-15" stroke="#4c775e" stroke-width="5" stroke-linecap="round"/><path d="M170 139q-12-24 11-26 10 14-11 26Zm46-8q8-25 26-12-2 17-26 12Z" fill="#6d9c74"/>
-  `,small:`<rect width="620" height="220" fill="#e6f0e9"/><circle cx="490" cy="48" r="26" fill="#edc36e"/><path d="M0 166Q130 118 262 164t358-1v57H0Z" fill="#94b698"/><path d="M0 193Q120 160 256 193t364 0v27H0Z" fill="#648d73"/>`};return `<svg viewBox="0 0 620 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${scenes[kind]||scenes.small}</svg>`}
-function stripHTML(s=''){const d=document.createElement('div');d.innerHTML=s;return d.textContent||d.innerText||''}
-const POS_ORDER=['verb','noun','adjective','adverb','pronoun','preposition','conjunction','determiner','interjection'];
-function posLabel(pos='other'){const p=String(pos).toLowerCase();if(p==='adj')return 'Adjective';if(p==='n')return 'Noun';if(p==='v')return 'Verb';return p.charAt(0).toUpperCase()+p.slice(1)}
-function localDefinition(word){const d=dict[word];if(!d)return null;const verbWords=new Set(['created','divided','called','said','saw','was']);const pos=verbWords.has(word)?'verb':'noun';return {groups:[{partOfSpeech:posLabel(pos),definitions:[{definition:d[0],example:''}]}],phonetic:d[1],source:'VerseWord glossary'};}
-function normalizeEntry(data){const entries=Array.isArray(data)?data:[data],groups=new Map();for(const entry of entries){for(const meaning of entry?.meanings||[]){const label=posLabel(meaning.partOfSpeech),key=label.toLowerCase(),items=(meaning.definitions||[]).filter(x=>x.definition).slice(0,3);if(!items.length)continue;if(!groups.has(key))groups.set(key,{partOfSpeech:label,definitions:[]});groups.get(key).definitions.push(...items)}}const normalized=[...groups.entries()].map(([,g])=>({...g,definitions:g.definitions.slice(0,4)})).sort((a,b)=>{const ai=POS_ORDER.indexOf(a.partOfSpeech.toLowerCase()),bi=POS_ORDER.indexOf(b.partOfSpeech.toLowerCase());return (ai<0?99:ai)-(bi<0?99:bi)});return {groups:normalized,phonetic:entries[0]?.phonetic||entries[0]?.phonetics?.find(p=>p.text)?.text||'',source:'Free Dictionary'};}
-async function fetchDefinition(word){const key=`verseword-def-v2-${word}`,fallback=localDefinition(word),cached=readJSON(key,null);if(cached?.groups?.length)return cached;try{const r=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);if(!r.ok)throw Error('No definition');const result=normalizeEntry(await r.json());if(!result.groups.length)throw Error('No definition');writeJSON(key,result);return result}catch(e){if(fallback)return fallback;throw e}}
-function textTokens(text){return [...new Set((String(text).toLowerCase().match(/[\p{L}]{3,}/gu)||[]))]}
-const STOP_WORDS=new Set('the and for but are was were have has had that this with from into upon then there their they them you your his her she him its our out all not one who what when where which while shall will would could should unto also hath doth let said says'.split(' '));
-function keywords(text,limit=6){return textTokens(text).filter(t=>!STOP_WORDS.has(t)).slice(0,limit)}
-function wordForms(word){const w=word.toLowerCase(),forms=[w];if(w.endsWith('ies'))forms.push(w.slice(0,-3)+'y');if(w.endsWith('ing'))forms.push(w.slice(0,-3),w.slice(0,-3)+'e');if(w.endsWith('ed'))forms.push(w.slice(0,-2),w.slice(0,-1));if(w.endsWith('s'))forms.push(w.slice(0,-1));return [...new Set(forms)].filter(x=>x.length>2)}
-function scoreImage(page,word,context,senseText){const info=page.imageinfo?.[0]||{},meta=info.extmetadata||{},title=stripHTML(page.title||'').replace(/^File:/,''),description=stripHTML(meta.ImageDescription?.value||meta.ObjectName?.value||''),titleWords=textTokens(title),allWords=new Set(textTokens(`${title} ${description}`)),forms=wordForms(word),exactWord=titleWords.some(t=>forms.includes(t)),ctx=keywords(context,12).filter(t=>!forms.includes(t)),definition=keywords(senseText,10).filter(t=>!forms.includes(t)),ctxHits=ctx.filter(t=>allWords.has(t)),defHits=definition.filter(t=>allWords.has(t)),score=(exactWord?4:0)+defHits.length*3+ctxHits.length;return {...page,score,exactWord,ctxHits,defHits,title,description}}
-async function fetchImageMatches(word,context,senseText){const contextTerms=keywords(context,4),senseTerms=keywords(senseText,5),cacheKey=`verseword-img-v3-${word}-${[...contextTerms,...senseTerms].join('-')}`;const cached=readJSON(cacheKey,null);if(cached)return cached;const queries=[`${word} ${senseTerms.slice(0,3).join(' ')}`,`${senseTerms.slice(0,4).join(' ')} ${contextTerms.slice(0,2).join(' ')}`].map(q=>q.trim()).filter((q,i,a)=>q&&a.indexOf(q)===i);const responses=await Promise.allSettled(queries.map(q=>fetch(`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrnamespace=6&gsrlimit=8&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=700&format=json&origin=*`).then(r=>{if(!r.ok)throw Error('Image lookup failed');return r.json()})));const pages=new Map();for(const response of responses)if(response.status==='fulfilled')for(const p of Object.values(response.value.query?.pages||{}))if(p.imageinfo?.[0]?.thumburl&&!/\.svg(?:$|\?)/i.test(p.imageinfo[0].thumburl))pages.set(p.pageid,scoreImage(p,word,context,senseText));const matches=[...pages.values()].filter(p=>p.defHits.length>=1&&(p.exactWord||p.defHits.length>=2)).sort((a,b)=>b.score-a.score).slice(0,5).map(p=>{const info=p.imageinfo[0],meta=info.extmetadata||{};return {url:info.thumburl,source:info.descriptionurl,title:p.title.replace(/^File:/,''),credit:stripHTML(meta.Artist?.value||meta.Credit?.value||'Wikimedia Commons'),license:stripHTML(meta.LicenseShortName?.value||'See license'),score:p.score,exactWord:p.exactWord,definitionHits:p.defHits.length,contextHits:p.ctxHits.length}});const result={matches};writeJSON(cacheKey,result);return result}
-function renderDefinitions(groups){meaningGroups=groups.flatMap(group=>group.definitions.map(item=>({partOfSpeech:group.partOfSpeech,definitions:[item]})));activeSense=0;$('definitions').innerHTML=meaningGroups.map((group,i)=>`<article class="sense-card ${i===0?'active':''}" data-sense-card="${i}"><button class="sense-select" type="button" data-sense="${i}"><span>${escapeHTML(group.partOfSpeech)} · Meaning ${i+1}</span><span>${i===0?'Selected for image':'Use this meaning for image'}</span></button><p class="sense-definition">${escapeHTML(group.definitions[0].definition)}</p>${group.definitions[0].example?`<div class="sense-examples-label">Example</div><p class="sense-example">${escapeHTML(group.definitions[0].example)}</p>`:''}</article>`).join('');document.querySelectorAll('[data-sense]').forEach(button=>button.addEventListener('click',()=>{activeSense=Number(button.dataset.sense);document.querySelectorAll('[data-sense-card]').forEach(card=>card.classList.toggle('active',Number(card.dataset.senseCard)===activeSense));refreshImages()}))}
-function fallbackKind(group){const pos=group?.partOfSpeech?.toLowerCase();if(pos==='verb')return 'create';if(pos==='adjective'||pos==='adverb')return 'beginning';if(pos==='noun')return 'earth';return dict[selectedWord]?.[2]||'small'}
-function showNoImage(message='No verified image for this meaning yet.'){$('visual').innerHTML=`<div class="image-placeholder"><span aria-hidden="true">◇</span><p>${escapeHTML(message)}</p></div>`}
-function showImage(image){$('visual').innerHTML=`<img src="${escapeHTML(image.url)}" alt="${escapeHTML(image.title)}" loading="lazy">`;$('image-credit').innerHTML=`${escapeHTML(image.credit)} · ${escapeHTML(image.license)} · <a href="${escapeHTML(image.source)}" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a>`;$('image-options').hidden=true;$('image-options').innerHTML=''}
-function showImageChoices(matches,group){showNoImage('Choose the picture that matches this meaning.');$('image-options').hidden=false;$('image-options').innerHTML=matches.slice(0,3).map((m,i)=>`<button class="image-choice" type="button" data-image-choice="${i}" aria-label="Choose image: ${escapeHTML(m.title)}"><img src="${escapeHTML(m.url)}" alt="" loading="lazy"><span>${escapeHTML(m.title)}</span></button>`).join('');$('image-credit').textContent='Possible matches from Wikimedia Commons. Confirm one before it is shown as the reference image.';document.querySelectorAll('[data-image-choice]').forEach(b=>b.onclick=()=>showImage(matches[Number(b.dataset.imageChoice)]))}
-async function refreshImages(){const token=++imageToken,group=meaningGroups[activeSense],senseText=group?.definitions?.[0]?.definition||'';$('image-options').hidden=true;showNoImage('Searching for a picture that fits this meaning…');$('image-credit').textContent='Checking images against this exact definition and verse…';try{const {matches}=await fetchImageMatches(selectedWord,selectedContext,senseText);if(token!==imageToken)return;const best=matches[0];if(best&&best.exactWord&&best.definitionHits>=2&&best.contextHits>=1){showImage(best);return}if(matches.length)showImageChoices(matches,group);else{$('image-options').hidden=true;showNoImage();$('image-credit').textContent='No image was a clear match for this meaning. A photo will not be shown automatically.'}}catch(e){if(token===imageToken){showNoImage();$('image-credit').textContent='Image search is unavailable. A photo will not be shown.'}}}
-async function openWord(word,context,verseNo,button){selectedWord=word;selectedContext=context;const token=++lookupToken;imageToken++;document.querySelectorAll('.word').forEach(x=>x.classList.toggle('selected',x===button));$('word-title').textContent=word;$('pronunciation').textContent='';$('definitions').innerHTML='<div class="no-results">Finding meanings by word type…</div>';showNoImage('Choose a meaning to find a matching picture.');$('image-options').hidden=true;$('image-credit').textContent='Pictures are checked against the selected definition and verse.';$('example').textContent=context;$('example-note').textContent=`${bookName()} ${chapterNumber}:${verseNo} · World English Bible`;$('save').classList.toggle('saved',saved.includes(word));$('save').innerHTML=saved.includes(word)?'✓ &nbsp;Saved to my words':'＋ &nbsp;Add to my words';$('word-sheet').classList.add('open');$('backdrop').classList.add('open');$('word-sheet').setAttribute('aria-hidden','false');$('close').focus();try{const d=await fetchDefinition(word);if(token!==lookupToken)return;renderDefinitions(d.groups);$('pronunciation').textContent=d.phonetic?`/${d.phonetic}/ · ${d.source}`:d.source;refreshImages()}catch(e){if(token!==lookupToken)return;$('definitions').innerHTML='<div class="no-results">No definition could be found for this word right now. The verse remains available below.</div>';refreshImages()}}
-function closeSheet(){$('word-sheet').classList.remove('open');$('backdrop').classList.remove('open');$('word-sheet').setAttribute('aria-hidden','true');document.querySelectorAll('.word').forEach(x=>x.classList.remove('selected'));lookupToken++}
-function updateSaved(){$('saved-list').innerHTML=saved.length?saved.map(w=>`<button class="saved-chip" data-saved="${escapeHTML(w)}">${escapeHTML(w)}</button>`).join(''):'<span class="empty-saved">Save words as you read.</span>';document.querySelectorAll('.saved-chip').forEach(b=>b.onclick=()=>{const w=b.dataset.saved;openWord(w,w,1,null)})}
-function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2100)}
-function moveChapter(delta){let c=chapterNumber+delta,i=bookIndex;if(c<1){i=(i+BOOKS.length-1)%BOOKS.length;c=BOOKS[i][2]}else if(c>BOOKS[i][2]){i=(i+1)%BOOKS.length;c=1}bookIndex=i;chapterNumber=c;populateBooks();loadChapter()}
-function setTheme(dark){document.body.classList.toggle('dark',dark);$('theme-toggle').innerHTML=dark?'☀ <span>Light</span>':'☾ <span>Dark</span>';$('theme-toggle').setAttribute('aria-label',dark?'Switch to light theme':'Switch to dark theme');document.querySelector('meta[name="theme-color"]').content=dark?'#0c1425':'#f7f4ed';localStorage.setItem('verseword-theme',dark?'dark':'light')}
-$('book-picker').addEventListener('change',e=>{bookIndex=Number(e.target.value);chapterNumber=1;populateChapters();loadChapter()});$('chapter-picker').addEventListener('change',e=>{chapterNumber=Number(e.target.value);loadChapter()});$('next').onclick=()=>moveChapter(1);$('previous').onclick=()=>moveChapter(-1);$('theme-toggle').onclick=()=>setTheme(!document.body.classList.contains('dark'));$('close').onclick=closeSheet;$('backdrop').onclick=closeSheet;document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});$('speak').onclick=()=>{if(!('speechSynthesis'in window)){toast('Audio is not available on this device');return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(chapterVerses.map(v=>v.text).join(' '));u.lang='en-US';speechSynthesis.speak(u)};$('save').onclick=()=>{if(!saved.includes(selectedWord)){saved.push(selectedWord);writeJSON('verseword-saved',saved);updateSaved();$('save').classList.add('saved');$('save').innerHTML='✓ &nbsp;Saved to my words';toast('Added to your word collection')}else toast('This word is already saved')};
-populateBooks();updateSaved();setTheme(localStorage.getItem('verseword-theme')==='dark');loadChapter();if('serviceWorker'in navigator){navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!window.__versewordRefreshing){window.__versewordRefreshing=true;location.reload()}});window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').then(reg=>reg.update()).catch(()=>{}))}
+(() => {
+  'use strict';
+  const C = window.VerseWordCore;
+  const $ = id => document.getElementById(id);
+  const MAX_CHAPTER_CACHE = 14;
+  const MAX_CACHE_CHARS = 500000;
+  const MAX_SAVED_WORDS = 500;
+  const SEMANTIC_CACHE_KEY = 'verseword-semantic-cache-v1';
+  const offlineStore = window.indexedDB && window.VerseWordOffline?.createStore();
+  const OLD = { saved: 'verseword-saved', chapters: 'verseword-chapters', read: 'verseword-read' };
+  const KEY = { saved: 'verseword-saved-v2', chapters: 'verseword-chapters-v2', read: 'verseword-read-v2', position: 'verseword-position-v1', settings: 'verseword-settings-v1' };
+  const readJSON = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
+  const writeJSON = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { toast('This device could not save the latest change.'); return false; } };
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]);
+  const parseRef = reference => {
+    const match = String(reference || '').match(/^(.*?)\s+(\d+):(\d+)$/);
+    if (!match) return null;
+    const index = C.BOOKS.findIndex(book => book[0].toLowerCase() === match[1].toLowerCase());
+    return index < 0 ? null : { bookIndex:index, chapter:Number(match[2]), verse:Number(match[3]) };
+  };
+  const initial = readJSON(KEY.position, null) || { bookIndex: 0, chapter: 1 };
+  let bookIndex = Math.max(0, Math.min(C.BOOKS.length - 1, Number(initial.bookIndex) || 0));
+  let chapterNumber = Math.max(1, Math.min(C.BOOKS[bookIndex][2], Number(initial.chapter) || 1));
+  let chapterVerses = [];
+  let chapterCache = readJSON(KEY.chapters, null) || readJSON(OLD.chapters, {});
+  let readChapters = new Set(readJSON(KEY.read, null) || readJSON(OLD.read, []));
+  let saved = C.migrateSavedWords(readJSON(KEY.saved, null) || readJSON(OLD.saved, []));
+  let activeView = 'read', selectedWord = '', selectedContext = '', selectedVerseNo = 0, selectedButton = null;
+  let lookupToken = 0, chapterToken = 0, chapterController = null, dictionaryController = null, toastTimer = null, currentSense = null, currentDefinitions = null;
+  let activeUtterance = null, activeUtteranceButton = null;
+  const settings = readJSON(KEY.settings, {});
+  let definitionCache = readJSON('verseword-def-cache-v3', {});
+  let semanticCache = readJSON(SEMANTIC_CACHE_KEY, {});
+  let bookDownloadController = null;
+
+  function migrateLocalData() {
+    saved = C.migrateSavedWords(saved);
+    const savedOk = writeJSON(KEY.saved, saved);
+    if (savedOk) { try { localStorage.removeItem(OLD.saved); } catch { /* keep the original collection if cleanup is unavailable */ } }
+    readChapters = new Set([...readChapters].slice(-C.TOTAL_CHAPTERS));
+    const readOk = writeJSON(KEY.read, [...readChapters]);
+    if (readOk) { try { localStorage.removeItem(OLD.read); } catch { /* keep the original progress if cleanup is unavailable */ } }
+    for (const key of Object.keys(chapterCache)) {
+      const { cache } = C.readCache(chapterCache, key, MAX_CHAPTER_CACHE);
+      chapterCache = cache;
+    }
+    const cacheJSON = JSON.stringify(chapterCache);
+    if (cacheJSON.length <= MAX_CACHE_CHARS) {
+      try { localStorage.setItem(KEY.chapters, cacheJSON); localStorage.removeItem(OLD.chapters); } catch { /* offline cache is optional */ }
+    } else {
+      chapterCache = {};
+      try { localStorage.removeItem(KEY.chapters); localStorage.removeItem(OLD.chapters); } catch { /* oversized chapter data is only a disposable cache */ }
+    }
+    for (let index = localStorage.length - 1; index >= 0; index--) {
+      const key = localStorage.key(index);
+      if (key?.startsWith('verseword-img-v3-') || key?.startsWith('verseword-def-v2-')) localStorage.removeItem(key);
+    }
+  }
+
+  function referenceFor(book = bookIndex, chapter = chapterNumber, verse = selectedVerseNo) {
+    const prefix = `${C.BOOKS[book][0]} ${chapter}`;
+    return verse ? `${prefix}:${verse}` : prefix;
+  }
+  function chapterKey(book = bookIndex, chapter = chapterNumber) { return `${C.BOOKS[book][1]}-${chapter}`; }
+  function bookName() { return C.BOOKS[bookIndex][0]; }
+  function apiUrl(book = bookIndex, chapter = chapterNumber) { return `https://dabar.io/data/web/${C.BOOKS[book][1]}/${chapter}`; }
+
+  function populateBooks() {
+    const select = $('book-picker');
+    select.innerHTML = '<optgroup label="Old Testament"></optgroup><optgroup label="New Testament"></optgroup>';
+    const groups = select.querySelectorAll('optgroup');
+    C.BOOKS.forEach((book, index) => {
+      const option = document.createElement('option'); option.value = index; option.textContent = book[0];
+      groups[index < 39 ? 0 : 1].appendChild(option);
+    });
+    select.value = String(bookIndex); populateChapters();
+  }
+  function populateChapters() {
+    const count = C.BOOKS[bookIndex][2], select = $('chapter-picker');
+    select.innerHTML = Array.from({ length: count }, (_, i) => `<option value="${i + 1}">Chapter ${i + 1}</option>`).join('');
+    select.value = String(chapterNumber);
+  }
+  function updateProgress() {
+    const count = readChapters.size, percent = Math.min(100, count / C.TOTAL_CHAPTERS * 100);
+    $('progress-count').textContent = `${count.toLocaleString()} / ${C.TOTAL_CHAPTERS.toLocaleString()} chapters`;
+    $('progress-percent').textContent = `${Math.floor(percent)}%`;
+    $('progress-fill').style.width = `${percent}%`;
+    $('progress-note').textContent = `Currently reading ${bookName()} ${chapterNumber}`;
+    $('progress-large-count').textContent = `${count.toLocaleString()} / ${C.TOTAL_CHAPTERS.toLocaleString()}`;
+    $('progress-large-fill').style.width = `${percent}%`;
+    $('progress-large-note').textContent = count ? `You have opened ${count} ${count === 1 ? 'chapter' : 'chapters'} so far.` : 'Choose a book and begin reading.';
+  }
+  function storeReadProgress() {
+    readChapters.add(chapterKey());
+    if (readChapters.size > C.TOTAL_CHAPTERS) readChapters = new Set([...readChapters].slice(-C.TOTAL_CHAPTERS));
+    writeJSON(KEY.read, [...readChapters]); updateProgress();
+  }
+  function storePosition() { writeJSON(KEY.position, { bookIndex, chapter: chapterNumber }); }
+  function renderWords(text, verseNo) {
+    return String(text).split(/(\s+)/).map(part => {
+      if (/^\s+$/.test(part)) return part;
+      const word = part.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
+      if (!word) return esc(part);
+      return `<button class="word" type="button" data-word="${esc(word.toLowerCase())}" data-verse="${verseNo}" aria-label="Explain ${esc(word)}">${esc(part)}</button>`;
+    }).join('');
+  }
+  function renderChapter() {
+    $('chapter-heading').textContent = `${bookName()} ${chapterNumber}`;
+    $('reader-text').innerHTML = chapterVerses.map(verse => `<p class="verse"><sup class="verse-number">${verse.number}</sup>${renderWords(verse.text, verse.number)}</p>`).join('');
+    $('reader-text').querySelectorAll('.word').forEach((button, index) => { button.tabIndex = index === 0 ? 0 : -1; });
+    $('book-picker').value = String(bookIndex); $('chapter-picker').value = String(chapterNumber);
+    $('reader-scroll').scrollTop = 0;
+    storeReadProgress(); storePosition();
+  }
+  function saveChapterCache(key, verses) {
+    chapterCache = { ...chapterCache };
+    delete chapterCache[key]; chapterCache[key] = verses;
+    while (Object.keys(chapterCache).length > MAX_CHAPTER_CACHE) delete chapterCache[Object.keys(chapterCache)[0]];
+    let serialized = JSON.stringify(chapterCache);
+    while (serialized.length > MAX_CACHE_CHARS && Object.keys(chapterCache).length > 1) {
+      delete chapterCache[Object.keys(chapterCache)[0]]; serialized = JSON.stringify(chapterCache);
+    }
+    try { localStorage.setItem(KEY.chapters, serialized); } catch { /* chapter cache is optional; saved words are not cleared */ }
+  }
+  async function loadChapter() {
+    const token = ++chapterToken, key = chapterKey(), url = apiUrl();
+    stopSpeech();
+    if (chapterController) chapterController.abort();
+    chapterController = new AbortController();
+    $('chapter-heading').textContent = `${bookName()} ${chapterNumber}`;
+    $('reader-text').innerHTML = '<div class="load-state">Loading this chapter…</div>';
+    $('offline-state').textContent = navigator.onLine ? '' : 'Offline';
+    populateChapters(); updateProgress(); closeWordSheet(false);
+    const cached = C.readCache(chapterCache, key, MAX_CHAPTER_CACHE);
+    chapterCache = cached.cache;
+    if (cached.value?.length) {
+      chapterVerses = cached.value; saveChapterCache(key, chapterVerses); renderChapter();
+      if (!navigator.onLine) $('offline-state').textContent = 'Saved for offline reading';
+      return;
+    }
+    try {
+      const downloaded = await offlineStore?.getChapter(key);
+      if (token !== chapterToken) return;
+      if (downloaded?.downloaded && downloaded.translation === 'WEB' && C.isOrderedChapter(downloaded.verses)) {
+        chapterVerses = downloaded.verses; saveChapterCache(key, chapterVerses); renderChapter();
+        $('offline-state').textContent = navigator.onLine ? 'Downloaded for offline use' : 'Downloaded for offline reading';
+        return;
+      }
+    } catch { /* temporary chapter cache and network remain available */ }
+    if (token !== chapterToken) return;
+    try {
+      const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: chapterController.signal });
+      if (!response.ok) throw new Error(`Chapter request failed (${response.status})`);
+      const verses = C.normalizeChapter(await response.json());
+      if (!verses.length) throw new Error('The chapter response was empty');
+      if (!C.canApplyChapterResponse(token, chapterToken, key, chapterKey())) return;
+      chapterVerses = verses; saveChapterCache(key, verses); renderChapter();
+      $('offline-state').textContent = '';
+    } catch (error) {
+      if (error.name === 'AbortError' || token !== chapterToken) return;
+      const fallback = chapterCache[key];
+      if (fallback?.length) {
+        chapterVerses = fallback; renderChapter(); $('offline-state').textContent = 'Saved copy';
+      } else {
+        $('reader-text').innerHTML = '<div class="load-state">This chapter could not load. Check your connection and try again.</div>';
+        $('offline-state').textContent = navigator.onLine ? 'Could not connect' : 'Offline';
+        toast(navigator.onLine ? 'The chapter could not load. Try again.' : 'This chapter is not saved for offline reading yet.');
+      }
+    }
+  }
+  function moveChapter(delta) {
+    ({ bookIndex, chapter: chapterNumber } = C.resolveChapter(bookIndex, chapterNumber, delta));
+    $('book-picker').value = String(bookIndex); populateChapters(); storePosition(); loadChapter();
+  }
+
+  function verseText(verseNo) { return chapterVerses.find(verse => verse.number === Number(verseNo))?.text || selectedContext; }
+  function highlightedVerse(text, word) {
+    const expression = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'iu');
+    return String(text).split(expression).map(part => part.toLowerCase() === word.toLowerCase() ? `<mark>${esc(part)}</mark>` : esc(part)).join('');
+  }
+  function renderCuratedIllustration(id) {
+    const images = {
+      'physical-light': '<svg viewBox="0 0 620 190" role="img" aria-label="Sunlight spreading across the land"><rect width="620" height="190" fill="#d9e8f2"/><circle cx="490" cy="45" r="29" fill="#edc779"/><path d="M490 77 280 168M475 77 204 174M507 77 385 170M456 67 132 127M518 66 569 118" stroke="#edc779" stroke-width="4" opacity=".52"/><path d="M0 141Q140 101 264 140t356-1v51H0Z" fill="#a7c196"/><path d="M0 169q140-29 291 0t329-1v22H0Z" fill="#6e927b"/></svg>',
+      'guiding-light': '<svg viewBox="0 0 620 190" role="img" aria-label="A bright path leading toward the sunrise"><defs><linearGradient id="dawn" x2="0" y2="1"><stop stop-color="#152544"/><stop offset="1" stop-color="#7387a1"/></linearGradient></defs><rect width="620" height="190" fill="url(#dawn)"/><circle cx="470" cy="66" r="24" fill="#edc779"/><path d="M0 143 149 111l96 21 137-48 238 54v52H0Z" fill="#263952"/><path d="M230 190q44-46 125-70 79 31 119 70" fill="#edc779" opacity=".78"/><path d="M264 190q34-37 91-57 53 23 84 57" fill="#f6e4b8"/></svg>',
+      shepherd: '<svg viewBox="0 0 620 190" role="img" aria-label="A shepherd caring for sheep in a green field"><rect width="620" height="190" fill="#deebeb"/><circle cx="500" cy="45" r="24" fill="#edc779"/><path d="M0 128q125-37 258 2t362-4v64H0Z" fill="#9ab790"/><path d="M0 163q142-34 286-2t334-1v30H0Z" fill="#6e9278"/><path d="M292 132V73q0-20 19-20t19 20v59m-45-34h71m-36-45V36" fill="none" stroke="#52635c" stroke-width="8" stroke-linecap="round"/><path d="M282 82q-19-20-32 0 5 19 27 15m73-13q17-19 29-2-3 20-24 16" fill="none" stroke="#52635c" stroke-width="7" stroke-linecap="round"/><g fill="#fffdf5"><ellipse cx="156" cy="140" rx="27" ry="17"/><circle cx="136" cy="130" r="12"/><circle cx="166" cy="127" r="13"/><circle cx="178" cy="140" r="11"/><ellipse cx="455" cy="155" rx="23" ry="15"/><circle cx="438" cy="145" r="10"/><circle cx="465" cy="143" r="12"/></g><g fill="#6f756f"><path d="M147 150v14m18-14v14m279 1v11m16-11v11" stroke="#6f756f" stroke-width="4"/></g></svg>',
+      waters: '<svg viewBox="0 0 620 190" role="img" aria-label="Water covering the land beneath a cloudy sky"><rect width="620" height="190" fill="#dce7eb"/><path d="M0 87q58-34 116 0t116 0 116 0 116 0 156 0v103H0Z" fill="#7ca7b8"/><path d="M0 117q58-18 116 0t116 0 116 0 116 0 156 0M0 151q58-18 116 0t116 0 116 0 116 0 156 0" fill="none" stroke="#d7ebee" stroke-width="7" opacity=".85"/><path d="M0 166q72-15 146 0t146 0 146 0 182 0" fill="none" stroke="#51879b" stroke-width="5"/></svg>',
+      seed: '<svg viewBox="0 0 620 190" role="img" aria-label="A small seed beginning to sprout in soil"><rect width="620" height="190" fill="#e5ece5"/><path d="M0 133q155-22 310 0t310 0v57H0Z" fill="#8b765b"/><path d="M0 148q155-19 310 0t310 0" fill="none" stroke="#b49b77" stroke-width="9"/><ellipse cx="307" cy="137" rx="17" ry="10" transform="rotate(-28 307 137)" fill="#d3ad65"/><path d="M310 129q0-33 2-55" fill="none" stroke="#5c8a62" stroke-width="8" stroke-linecap="round"/><path d="M311 91q-42-33-56-2 25 24 56 2m1-17q36-39 57-14-16 29-57 14" fill="#79a86e"/></svg>',
+      'life-bread': '<svg viewBox="0 0 620 190" role="img" aria-label="A symbolic path of light representing the phrase bread of life"><rect width="620" height="190" fill="#e4e9ed"/><circle cx="480" cy="40" r="25" fill="#edc779"/><path d="M0 145 155 116l91 18 129-46 245 55v47H0Z" fill="#293951"/><path d="M210 190q52-57 133-82 80 29 126 82" fill="#edc779" opacity=".72"/><path d="M252 190q38-43 91-62 56 21 94 62" fill="#f7e9c5"/><path d="M306 172v-33m0-1q-28-26-45-5 15 22 45 5m0-8q26-31 46-10-15 24-46 10" fill="none" stroke="#789a78" stroke-width="7" stroke-linecap="round"/></svg>'
+    };
+    return images[id] || '';
+  }
+  function renderDefinitions(groups) {
+    const list = $('definitions-list');
+    list.innerHTML = (groups || []).flatMap(group => (group.definitions || []).slice(0, 4).map(item => `<article class="dictionary-group"><strong>${esc(group.partOfSpeech)}</strong><p>${esc(item.definition)}</p>${item.example ? `<p><em>${esc(item.example)}</em></p>` : ''}</article>`)).join('');
+    $('other-senses').hidden = !list.innerHTML;
+  }
+  function setSense(sense, source, groups) {
+    currentSense = sense;
+    $('part-of-speech').textContent = sense?.partOfSpeech || 'Word meaning';
+    $('sense-source').textContent = source || '';
+    $('sense-title').textContent = sense ? 'Meaning in this verse' : 'General dictionary meanings';
+    $('primary-definition').textContent = sense?.definition || groups?.[0]?.definitions?.[0]?.definition || 'No definition is available for this word yet.';
+    $('context-note').textContent = sense?.note || 'No context-checked meaning is available yet. These dictionary meanings are general; use the verse to decide which one fits.';
+    const illustration = sense && C.illustrationFor(selectedWord, referenceBookName(), referenceChapter(), selectedVerseNo);
+    const svg = illustration && renderCuratedIllustration(illustration.id);
+    $('meaning-visual').hidden = !svg;
+    $('illustration').innerHTML = svg || '';
+    $('illustration-caption').textContent = illustration?.caption || '';
+    $('image-attribution').hidden = !svg;
+    $('image-attribution').textContent = svg ? illustration.attribution : '';
+  }
+  function referenceBookName() {
+    const parsed = parseRef(currentReference);
+    return parsed ? C.BOOKS[parsed.bookIndex][0].toLowerCase() : bookName().toLowerCase();
+  }
+  function referenceChapter() { return parseRef(currentReference)?.chapter || chapterNumber; }
+  let currentReference = '';
+  function contextualSenseFor(word, book, chapter, verse, reference = currentReference) {
+    const sense = C.contextualSense(word, book, chapter, verse);
+    if (!sense?.guideId) return sense;
+    const key = C.semanticCacheKey(word, reference, 'WEB', C.SEMANTIC_INTERPRETER_VERSION);
+    if (key && semanticCache[key] !== sense.guideId) {
+      semanticCache = { ...semanticCache, [key]: sense.guideId };
+      while (Object.keys(semanticCache).length > 300) delete semanticCache[Object.keys(semanticCache)[0]];
+      C.persistJSON(localStorage, SEMANTIC_CACHE_KEY, semanticCache);
+    }
+    return sense;
+  }
+  function contextualSenseFor(word, book, chapter, verse, reference = currentReference) {
+    const sense = C.contextualSense(word, book, chapter, verse);
+    if (!sense?.guideId) return sense;
+    const key = C.semanticCacheKey(word, reference, 'WEB', C.SEMANTIC_INTERPRETER_VERSION);
+    if (!key) return sense;
+    if (semanticCache[key] !== sense.guideId) {
+      semanticCache = { ...semanticCache, [key]: sense.guideId };
+      while (Object.keys(semanticCache).length > 300) delete semanticCache[Object.keys(semanticCache)[0]];
+      C.persistJSON(localStorage, SEMANTIC_CACHE_KEY, semanticCache);
+    }
+    return sense;
+  }
+  async function getDefinitions(word, token, signal) {
+    const key = word;
+    if (definitionCache[key]?.groups?.length) {
+      const cached = definitionCache[key]; delete definitionCache[key]; definitionCache[key] = cached;
+      return cached;
+    }
+    const candidates = C.lemmaCandidates(word);
+    for (const candidate of candidates) {
+      try {
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(candidate)}`, { signal });
+        if (!response.ok) continue;
+        const result = C.normalizeDefinitions(await response.json());
+        if (token !== lookupToken) return null;
+        if (result.groups.length) { cacheDefinition(key, result); return result; }
+      } catch (error) { if (error.name === 'AbortError') return null; /* try a normalized form, then the local glossary */ }
+    }
+    return C.localDefinition(word);
+  }
+  function cacheDefinition(word, result) {
+    definitionCache = { ...definitionCache };
+    delete definitionCache[word]; definitionCache[word] = result;
+    let serialized = JSON.stringify(definitionCache);
+    while ((Object.keys(definitionCache).length > 200 || serialized.length > 300000) && Object.keys(definitionCache).length > 1) {
+      delete definitionCache[Object.keys(definitionCache)[0]]; serialized = JSON.stringify(definitionCache);
+    }
+    try { localStorage.setItem('verseword-def-cache-v3', serialized); } catch { /* definition cache can be fetched again */ }
+  }
+  function showWordSheet() {
+    const sheet = $('word-sheet'), backdrop = $('sheet-backdrop');
+    sheet.inert = false; sheet.setAttribute('aria-hidden', 'false'); sheet.classList.add('open'); backdrop.hidden = false;
+    document.body.style.overflow = 'hidden'; $('close-sheet').focus();
+  }
+  function closeWordSheet(restoreFocus = true) {
+    const sheet = $('word-sheet');
+    if (!sheet.classList.contains('open')) return;
+    sheet.classList.remove('open'); sheet.setAttribute('aria-hidden', 'true'); sheet.inert = true; $('sheet-backdrop').hidden = true;
+    document.body.style.overflow = ''; lookupToken++;
+    dictionaryController?.abort(); dictionaryController = null;
+    if (restoreFocus && selectedButton?.isConnected) selectedButton.focus();
+    if (selectedButton?.isConnected) selectedButton.classList.remove('selected'); selectedButton = null;
+  }
+  async function openWord(word, verseNo, button, savedEntry = null) {
+    stopSpeech(); dictionaryController?.abort();
+    dictionaryController = new AbortController();
+    selectedWord = C.normalizeWord(word); selectedVerseNo = Number(verseNo) || 0;
+    selectedButton = button || null;
+    if (selectedButton) selectedButton.classList.add('selected');
+    selectedContext = savedEntry?.example || verseText(selectedVerseNo);
+    const storedRef = savedEntry?.reference && parseRef(savedEntry.reference);
+    currentReference = savedEntry?.reference || referenceFor();
+    if (storedRef) selectedVerseNo = storedRef.verse;
+    const token = ++lookupToken, refBook = referenceBookName(), refChapter = referenceChapter();
+    const contextual = contextualSenseFor(selectedWord, refBook, refChapter, selectedVerseNo, currentReference);
+    currentSense = contextual; currentDefinitions = null; $('save-word').disabled = !contextual;
+    $('word-title').textContent = selectedWord;
+    $('pronunciation').textContent = 'Looking up pronunciation…';
+    $('context-verse').innerHTML = highlightedVerse(selectedContext, selectedWord);
+    $('context-reference').textContent = currentReference ? `${currentReference} · World English Bible` : 'World English Bible';
+    $('part-of-speech').textContent = 'Checking word type…'; $('sense-source').textContent = '';
+    $('sense-title').textContent = 'Meaning in this verse'; $('primary-definition').textContent = 'Checking the verse and dictionary…';
+    $('context-note').textContent = 'Checking whether this word has a context-specific meaning.';
+    $('meaning-visual').hidden = true; $('image-attribution').hidden = true; $('other-senses').hidden = true;
+    $('save-word').classList.toggle('saved', saved.some(entry => entry.word === selectedWord && entry.reference === currentReference));
+    $('save-word').textContent = $('save-word').classList.contains('saved') ? '✓ Saved to My Words' : '＋ Save to My Words';
+    if (contextual) setSense(contextual, 'VerseWord contextual guide', []);
+    showWordSheet();
+    try {
+      const result = await getDefinitions(selectedWord, token, dictionaryController.signal);
+      if (token !== lookupToken) return;
+      currentDefinitions = result;
+      if (contextual) setSense(contextual, 'VerseWord contextual guide', result?.groups || []);
+      else setSense(null, result?.source || 'Dictionary unavailable', result?.groups || []);
+      $('pronunciation').textContent = `${result?.phonetic || ''}${result?.phonetic ? ' · ' : ''}${result?.source || 'Pronunciation unavailable'}`;
+      renderDefinitions(result?.groups || []);
+      $('save-word').disabled = false;
+    } catch {
+      if (token !== lookupToken) return;
+      currentDefinitions = null; if (!contextual) setSense(null, 'Dictionary unavailable', []);
+      $('pronunciation').textContent = 'Pronunciation unavailable'; renderDefinitions([]); $('save-word').disabled = false;
+    }
+  }
+
+  function renderSaved() {
+    const preview = $('saved-preview');
+    preview.innerHTML = saved.length ? saved.slice(-6).reverse().map((entry, i) => `<button class="saved-word-chip" type="button" data-saved-index="${saved.length - 1 - i}">${esc(entry.word)}</button>`).join('') : '<p class="muted">Save words as you read.</p>';
+    const collection = $('saved-collection');
+    collection.innerHTML = saved.length ? [...saved].reverse().map((entry, reverseIndex) => {
+      const index = saved.length - 1 - reverseIndex;
+      return `<article class="word-entry"><div class="word-entry-top"><div><h2>${esc(entry.word)}</h2><span class="entry-pos">${esc(entry.partOfSpeech || 'Vocabulary')}</span></div><div class="entry-actions"><button type="button" data-open-saved="${index}">Review</button><button type="button" data-remove-saved="${index}" aria-label="Remove ${esc(entry.word)} from My Words">Remove</button></div></div><p>${esc(entry.definition || 'Open this saved word to review its meaning.')}</p><small>${esc(entry.reference || 'Saved word')}${entry.savedAt && entry.savedAt !== new Date(0).toISOString() ? ` · Saved ${new Date(entry.savedAt).toLocaleDateString()}` : ''}</small></article>`;
+    }).join('') : '<div class="empty-state"><strong>Your collection is ready.</strong><p>Tap a word while reading and save it to keep its meaning and Bible reference here.</p><button class="primary-button" data-view="read" type="button">Start reading</button></div>';
+  }
+  function saveCurrentWord() {
+    const exists = saved.some(entry => entry.word === selectedWord && entry.reference === currentReference && entry.partOfSpeech === (currentSense?.partOfSpeech || currentDefinitions?.groups?.[0]?.partOfSpeech || ''));
+    if (!exists && saved.length >= MAX_SAVED_WORDS) { toast('My Words is full. Remove a saved word before adding another.'); return; }
+    const entry = { word: selectedWord, lemma: C.lemmaFor(selectedWord), partOfSpeech: currentSense?.partOfSpeech || currentDefinitions?.groups?.[0]?.partOfSpeech || '', definition: $('primary-definition').textContent, reference: currentReference, example: selectedContext, image: currentSense?.illustration ? { id: currentSense.illustration, caption: currentSense.note } : null, savedAt: new Date().toISOString() };
+    const nextSaved = C.upsertSavedWord(saved, entry, MAX_SAVED_WORDS);
+    if (!C.persistJSON(localStorage, KEY.saved, nextSaved)) { toast('Could not save this word. Check device storage and try again.'); return false; }
+    saved = nextSaved; renderSaved();
+    $('save-word').classList.add('saved'); $('save-word').textContent = '✓ Saved to My Words'; toast('Saved to My Words');
+    return true;
+  }
+  function removeSaved(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= saved.length) return false;
+    const nextSaved = saved.filter((_entry, entryIndex) => entryIndex !== index);
+    if (!C.persistJSON(localStorage, KEY.saved, nextSaved)) { toast('Could not remove this word. Check device storage and try again.'); return false; }
+    saved = nextSaved; renderSaved(); toast('Removed from My Words'); return true;
+  }
+  function toast(message) {
+    const element = $('toast'); element.textContent = message; element.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => element.classList.remove('show'), 2200);
+  }
+
+  function switchView(view) {
+    if (!['read','words','progress','settings'].includes(view)) return;
+    activeView = view;
+    document.querySelectorAll('[data-view-panel]').forEach(panel => { const active = panel.dataset.viewPanel === view; panel.hidden = !active; panel.classList.toggle('active', active); });
+    document.querySelectorAll('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === view));
+    if (view === 'words') renderSaved(); if (view === 'progress') updateProgress();
+    $('app-main').focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function applyTheme(choice) {
+    const dark = choice === 'dark' || (choice === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.body.classList.toggle('dark', dark);
+    document.querySelector('meta[name="theme-color"]').content = dark ? '#0c1425' : '#f5f2eb';
+    $('theme-quick').setAttribute('aria-pressed', String(dark));
+    $('theme-quick').setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+    $('theme-quick').textContent = dark ? '☼' : '◐';
+    if ($('theme-setting').value !== choice) $('theme-setting').value = choice;
+  }
+  function setTheme(choice, persist = true) {
+    if (!['system','light','dark'].includes(choice)) choice = 'system';
+    if (persist) {
+      const result = C.updateSettings(localStorage, KEY.settings, settings, { theme: choice });
+      if (!result.persisted) toast('Theme changed for this session but could not be saved on this device.');
+      Object.assign(settings, result.settings);
+    } else settings.theme = choice;
+    applyTheme(choice);
+  }
+  function applyReadingSettings() {
+    const size = Math.max(18, Math.min(30, Number(settings.fontSize) || 21));
+    const leading = ['1.65','1.85','2.05'].includes(String(settings.lineHeight)) ? settings.lineHeight : '1.85';
+    document.documentElement.style.setProperty('--reader-size', `${size}px`);
+    document.documentElement.style.setProperty('--reader-leading', leading);
+    $('font-size-setting').value = String(size); $('font-size-value').value = `${size} px`; $('line-height-setting').value = leading;
+  }
+  function stopSpeech() {
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    if (activeUtteranceButton) {
+      activeUtteranceButton.setAttribute('aria-pressed', 'false');
+      activeUtteranceButton.setAttribute('aria-label', activeUtteranceButton.id === 'speak' ? 'Read chapter aloud' : 'Hear pronunciation');
+      activeUtteranceButton.title = activeUtteranceButton.id === 'speak' ? 'Read aloud' : 'Hear pronunciation';
+    }
+    activeUtterance = null; activeUtteranceButton = null;
+  }
+  function speak(text, button) {
+    if (!('speechSynthesis' in window)) { toast('Audio is not available on this device.'); return; }
+    if (activeUtteranceButton === button && (speechSynthesis.speaking || speechSynthesis.pending)) { stopSpeech(); return; }
+    stopSpeech();
+    const utterance = new SpeechSynthesisUtterance(text); utterance.lang = 'en-US';
+    activeUtterance = utterance; activeUtteranceButton = button;
+    button.setAttribute('aria-pressed', 'true'); button.setAttribute('aria-label', button.id === 'speak' ? 'Stop reading aloud' : 'Stop pronunciation'); button.title = 'Stop audio';
+    const finish = () => { if (activeUtterance === utterance) stopSpeech(); };
+    utterance.onend = finish; utterance.onerror = finish;
+    speechSynthesis.speak(utterance);
+  }
+  function formatBytes(bytes) {
+    if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  function populateOfflineBookPicker() {
+    $('offline-book-picker').innerHTML = C.BOOKS.map(([name], index) => `<option value="${index}">${esc(name)}</option>`).join('');
+    $('offline-book-picker').value = String(bookIndex); updateOfflineEstimate();
+  }
+  function updateOfflineEstimate() {
+    const book = C.BOOKS[Number($('offline-book-picker').value)] || C.BOOKS[0];
+    $('offline-estimate').textContent = `Estimated size: about ${formatBytes(C.estimatedBookBytes(book[2]))}. Actual size varies by book and browser storage.`;
+  }
+  async function refreshOfflineBooks() {
+    const status = $('offline-download-status');
+    if (!offlineStore) { status.textContent = 'Persistent offline downloads are not available in this browser.'; $('offline-download').disabled = true; $('offline-remove').disabled = true; return; }
+    try {
+      const books = await offlineStore.listBooks();
+      const selected = books.find(book => book.bookIndex === Number($('offline-book-picker').value));
+      $('offline-remove').disabled = !selected || Boolean(bookDownloadController);
+      if (books.length && !bookDownloadController) status.textContent = `Stored offline: ${books.map(book => C.BOOKS[book.bookIndex]?.[0]).filter(Boolean).join(', ')}.`;
+      else if (!books.length && !bookDownloadController) status.textContent = 'No books downloaded yet.';
+    } catch { status.textContent = 'Could not read offline storage. Check browser storage settings.'; }
+  }
+  async function downloadBook() {
+    if (!offlineStore || bookDownloadController) return;
+    const selectedBook = Number($('offline-book-picker').value), [name, code, chapterCount] = C.BOOKS[selectedBook];
+    const approximate = C.estimatedBookBytes(chapterCount);
+    try {
+      const existingBooks = await offlineStore.listBooks();
+      const existingBytes = existingBooks.find(book => book.bookIndex === selectedBook)?.bytes || 0;
+      const storage = await navigator.storage?.estimate?.();
+      if (storage?.quota && storage.quota - storage.usage < Math.max(0, approximate - existingBytes) * 1.1) {
+        $('offline-download-status').textContent = 'There may not be enough storage for this book. Free space on this device and try again.'; return;
+      }
+    } catch { /* storage estimates are optional */ }
+    const controller = new AbortController(); bookDownloadController = controller;
+    const progress = $('offline-download-progress'); progress.max = chapterCount; progress.value = 0; progress.hidden = false;
+    $('offline-download').disabled = true; $('offline-cancel').disabled = false; $('offline-remove').disabled = true;
+    let totalBytes = 0, savedCount = 0;
+    try {
+      for (let chapter = 1; chapter <= chapterCount; chapter += 1) {
+        if (controller.signal.aborted) throw new DOMException('Download cancelled', 'AbortError');
+        const key = `${code}-${chapter}`;
+        let record = await offlineStore.getChapter(key);
+        if (!record?.downloaded || record.translation !== 'WEB' || !C.isOrderedChapter(record.verses)) {
+          $('offline-download-status').textContent = `Downloading ${name} ${chapter} of ${chapterCount}…`;
+          const response = await fetch(apiUrl(selectedBook, chapter), { headers: { Accept: 'application/json' }, signal: controller.signal });
+          if (!response.ok) throw new Error(`Could not download ${name} ${chapter} (${response.status}).`);
+          const verses = C.normalizeChapter(await response.json());
+          if (!C.isOrderedChapter(verses)) throw new Error(`${name} ${chapter} returned incomplete or out-of-order verses. The download stopped.`);
+          const bytes = new TextEncoder().encode(JSON.stringify(verses)).length;
+          record = { key, bookIndex: selectedBook, chapter, verses, bytes, translation: 'WEB', downloadedAt: new Date().toISOString() };
+          await offlineStore.putChapter(record); totalBytes += bytes;
+        } else totalBytes += Number(record.bytes) || new TextEncoder().encode(JSON.stringify(record.verses)).length;
+        savedCount += 1; progress.value = chapter;
+        if (chapter < chapterCount) await new Promise(resolve => setTimeout(resolve, 2100));
+      }
+      $('offline-download-status').textContent = `${name} is ready offline (${formatBytes(totalBytes)}).`;
+    } catch (error) {
+      $('offline-download-status').textContent = error.name === 'AbortError' ? `${name} download cancelled. ${savedCount} of ${chapterCount} chapters are available offline.` : `${error.message} ${savedCount} of ${chapterCount} chapters are available offline.`;
+    } finally {
+      bookDownloadController = null; $('offline-download').disabled = false; $('offline-cancel').disabled = true;
+      progress.hidden = true; await refreshOfflineBooks();
+    }
+  }
+  async function removeOfflineBook() {
+    if (!offlineStore || bookDownloadController) return;
+    const selectedBook = Number($('offline-book-picker').value), name = C.BOOKS[selectedBook][0];
+    try {
+      const removed = await offlineStore.removeBook(selectedBook);
+      $('offline-download-status').textContent = removed ? `Removed ${name} offline download (${removed} chapters).` : `${name} has no stored download.`;
+      await refreshOfflineBooks();
+    } catch { $('offline-download-status').textContent = `Could not remove ${name}. Check browser storage settings and try again.`; }
+  }
+  function focusTrap(event) {
+    if (event.key !== 'Tab' || !$('word-sheet').classList.contains('open')) return;
+    const nodes = [...$('word-sheet').querySelectorAll('button:not([disabled]),summary,[href],input,select,[tabindex]:not([tabindex="-1"])')].filter(node => !node.hidden && node.getClientRects().length);
+    if (!nodes.length) return;
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }
+
+  document.addEventListener('click', event => {
+    const nav = event.target.closest('[data-view]'); if (nav) { switchView(nav.dataset.view); return; }
+    const wordButton = event.target.closest('button[data-word]');
+    if (wordButton) { const verse = chapterVerses.find(item => item.number === Number(wordButton.dataset.verse)); openWord(wordButton.dataset.word, Number(wordButton.dataset.verse), wordButton, { example: verse?.text || '', reference: referenceFor(bookIndex, chapterNumber, Number(wordButton.dataset.verse)) }); return; }
+    const savedButton = event.target.closest('[data-saved-index],[data-open-saved]');
+    if (savedButton) {
+      const index = Number(savedButton.dataset.savedIndex ?? savedButton.dataset.openSaved), entry = saved[index];
+      if (entry) { const parsed = parseRef(entry.reference); openWord(entry.word, parsed?.verse || 0, null, entry); }
+      return;
+    }
+    const removeButton = event.target.closest('[data-remove-saved]'); if (removeButton) removeSaved(Number(removeButton.dataset.removeSaved));
+  });
+  $('book-picker').addEventListener('change', event => { bookIndex = Number(event.target.value); chapterNumber = 1; populateChapters(); storePosition(); loadChapter(); });
+  $('chapter-picker').addEventListener('change', event => { chapterNumber = Number(event.target.value); storePosition(); loadChapter(); });
+  $('previous').addEventListener('click', () => moveChapter(-1)); $('next').addEventListener('click', () => moveChapter(1));
+  $('speak').addEventListener('click', () => speak(chapterVerses.map(verse => verse.text).join(' '), $('speak')));
+  $('speak-word').addEventListener('click', () => speak(selectedWord, $('speak-word')));
+  $('close-sheet').addEventListener('click', () => closeWordSheet()); $('sheet-backdrop').addEventListener('click', () => closeWordSheet());
+  $('save-word').addEventListener('click', saveCurrentWord);
+  $('theme-quick').addEventListener('click', () => setTheme(document.body.classList.contains('dark') ? 'light' : 'dark'));
+  $('theme-setting').addEventListener('change', event => setTheme(event.target.value));
+  $('offline-book-picker').addEventListener('change', () => { updateOfflineEstimate(); refreshOfflineBooks(); });
+  $('offline-download').addEventListener('click', downloadBook);
+  $('offline-cancel').addEventListener('click', () => bookDownloadController?.abort());
+  $('offline-remove').addEventListener('click', removeOfflineBook);
+  $('font-size-setting').addEventListener('input', event => { settings.fontSize = Number(event.target.value); $('font-size-value').value = `${settings.fontSize} px`; applyReadingSettings(); writeJSON(KEY.settings, settings); });
+  $('line-height-setting').addEventListener('change', event => { settings.lineHeight = event.target.value; applyReadingSettings(); writeJSON(KEY.settings, settings); });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && $('word-sheet').classList.contains('open')) closeWordSheet();
+    const activeWord = document.activeElement.closest?.('.word');
+    if (activeWord && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
+      const words = [...$('reader-text').querySelectorAll('.word')], index = words.indexOf(activeWord), next = words[index + (event.key === 'ArrowRight' ? 1 : -1)];
+      if (next) { event.preventDefault(); activeWord.tabIndex = -1; next.tabIndex = 0; next.focus(); }
+    }
+    focusTrap(event);
+  });
+  let touchStartY = 0;
+  $('word-sheet').addEventListener('touchstart', event => { touchStartY = event.touches[0]?.clientY || 0; }, { passive: true });
+  $('word-sheet').addEventListener('touchend', event => { const endY = event.changedTouches[0]?.clientY || 0; if (window.matchMedia('(max-width: 680px)').matches && endY - touchStartY > 95 && $('word-sheet').scrollTop === 0) closeWordSheet(); }, { passive: true });
+  window.addEventListener('online', () => { $('offline-state').textContent = ''; if (!chapterVerses.length) loadChapter(); });
+  window.addEventListener('offline', () => { $('offline-state').textContent = 'Offline'; });
+  if (matchMedia('(prefers-color-scheme: dark)').addEventListener) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if ((settings.theme || 'system') === 'system') applyTheme('system'); });
+
+  migrateLocalData(); populateBooks(); renderSaved(); updateProgress(); applyReadingSettings(); populateOfflineBookPicker(); refreshOfflineBooks();
+  const selectedTheme = settings.theme || localStorage.getItem('verseword-theme') || 'system';
+  setTheme(selectedTheme, false); $('word-sheet').inert = true;
+  loadChapter();
+  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').then(registration => registration.update()).catch(() => { /* online browsing remains available */ }));
+})();
