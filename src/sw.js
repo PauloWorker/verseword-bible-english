@@ -1,4 +1,4 @@
-const CACHE = 'verseword-v8';
+const CACHE = 'verseword-v9';
 const ASSETS = ['/', '/styles.css', '/core.js', '/offline.js', '/app.js', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', event => {
