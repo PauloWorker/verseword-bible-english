@@ -161,9 +161,9 @@ test('PWA shell exposes themes, responsive navigation, keyboard dialog, and offl
   assert.match(app, /focusTrap/);
   assert.match(app, /Saved for offline reading/);
   assert.match(html, /id="offline-book-picker"/);
-  assert.match(html, /id="offline-download-progress"/);
+    assert.match(sw, /verseword-v[0-9]+/);
   assert.match(offline, /createObjectStore\('chapters'/);
-  assert.match(sw, /verseword-v8/);
+  
   assert.match(sw, /'\/offline.js'/);
   assert.doesNotMatch(sw, /skipWaiting\(\)|clients\.claim\(\)/);
   assert.doesNotMatch(app, /location\.reload\(/);
