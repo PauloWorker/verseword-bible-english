@@ -9,9 +9,10 @@ This project uses browser-native JavaScript and Node's built-in tooling. It has 
 ```sh
 npm test
 npm run build
+npm run verify:dist
 ```
 
-The build copies the maintained source files and app icons from `src/` into `dist/`. The app gets the World English Bible chapter text from Dabar, general dictionary entries from Free Dictionary API, and pronunciation audio from the browser's speech synthesis when available.
+`src/` is the sole maintained application source. The build reads the publication directory from `.openai/hosting.json`, checks that every required source exists before replacing the output, generates the complete PWA in `dist/`, and compares every generated file byte-for-byte. `npm test` runs the full `src/*.test.cjs` suite and verifies that the checked-in distribution is current. `npm run verify:dist` runs the distribution check on its own. The app gets the World English Bible chapter text from Dabar, general dictionary entries from Free Dictionary API, and pronunciation audio from the browser's speech synthesis when available.
 
 ## Contextual meanings and illustrations
 
